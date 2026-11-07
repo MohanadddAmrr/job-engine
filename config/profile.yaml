@@ -1,17 +1,81 @@
-# Keywords describing the candidate's skills and interests
-candidate_keywords: []
+# Target job titles to search for
+target_titles:
+  core:        # highest weight
+    - machine learning engineer
+    - ml engineer
+    - data scientist
+    - ai engineer
+    - computer vision engineer
+    - data analyst
+    - data engineer
+    - mlops engineer
+  secondary:   # strong fit, slightly lower
+    - backend engineer
+    - backend developer
+  wide:        # included but lowest weight, must never outrank core
+    - software engineer
+    - full stack developer
+    - full-stack developer
 
 # Weights for each technology in the candidate's stack (used during scoring)
-stack_weights: {}
+stack_weights:
+  # highest tier (weight 5)
+  python: 5
+  computer vision: 5
+  pytorch: 5
+  machine learning: 5
+  deep learning: 5
+  # high tier (weight 3)
+  yolo: 3
+  opencv: 3
+  tensorflow: 3
+  data science: 3
+  scikit-learn: 3
+  # medium tier (weight 2)
+  fastapi: 2
+  docker: 2
+  sql: 2
+  pandas: 2
+  nlp: 2
+  llm: 2
+  langchain: 2
+  rag: 2
+  ai agents: 2
 
 # Job titles or seniority terms that should be excluded
-seniority_block_terms: []
+seniority_block_terms:   # kill if title contains any of these
+  - senior
+  - staff
+  - principal
+  - lead
+  - manager
+  - director
+  - head of
+  - vp
+  - vice president
 
 # Locations that should be excluded from results
-location_block_terms: []
+location_block_terms:    # kill if location OR description strongly indicates closed to Egypt-based applicant
+  - us only
+  - u.s. only
+  - us-based only
+  - must be located in the united states
+  - must reside in the us
+  - work authorization required
+  - requires us work authorization
+  - green card
+  - security clearance
+  - eu only
+  - europe only
+  - must be based in europe
 
-# Target job titles to search for
-target_titles: []
+# Free-text terms describing the candidate, for soft matching
+candidate_keywords:
+  - fintech
+  - backend
+  - microservices
+  - streamlit
+  - flutter
 
 # Minimum score a job must reach to appear on the dashboard
-score_threshold:
+score_threshold: 15
