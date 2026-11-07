@@ -87,6 +87,7 @@ def build_dashboard():
             "breakdown": breakdown,
             "desc_preview": desc_preview,
             "remote": j.get("remote", False),
+            "work_mode": j.get("work_mode", "remote"),
             "playbook": j.get("playbook", {}),
         })
 
@@ -155,6 +156,12 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 }}
 .tab:hover {{ color: var(--text-primary); }}
 .tab.active {{ color: var(--aqua-bright); border-bottom-color: var(--aqua-bright); }}
+.tab-count {{
+  display: inline-block; font-size: 0.7rem; min-width: 20px; text-align: center;
+  padding: 1px 6px; border-radius: 10px; margin-left: 6px;
+  background: rgba(46,139,130,0.2); color: var(--text-muted);
+}}
+.tab.active .tab-count {{ background: rgba(63,184,172,0.25); color: var(--aqua-bright); }}
 
 /* ── Filters ── */
 .filters {{
@@ -329,9 +336,9 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 </div>
 
 <div class="tabs" id="tabs">
-  <div class="tab active" data-track="remote">Remote</div>
-  <div class="tab" data-track="relocation">Relocation</div>
-  <div class="tab" data-track="contract">Contract</div>
+  <div class="tab active" data-track="remote">Remote<span class="tab-count" id="count-remote"></span></div>
+  <div class="tab" data-track="relocation">Relocation<span class="tab-count" id="count-relocation"></span></div>
+  <div class="tab" data-track="contract">Contract<span class="tab-count" id="count-contract"></span></div>
 </div>
 
 <div class="filters">
@@ -357,19 +364,29 @@ function escapeHtml(s) {{
   return d.innerHTML;
 }}
 
+function updateTabCounts() {{
+  var remote = JOBS.filter(j => j.work_mode === 'remote').length;
+  var reloc = JOBS.filter(j => j.work_mode === 'onsite').length;
+  document.getElementById('count-remote').textContent = remote;
+  document.getElementById('count-relocation').textContent = reloc;
+  document.getElementById('count-contract').textContent = '0';
+}}
+
 function renderCards() {{
   const grid = document.getElementById('grid');
   const countEl = document.getElementById('job-count');
+  updateTabCounts();
 
-  if (activeTrack !== 'remote') {{
-    grid.innerHTML = '<div class="empty-state">Coming in the next build &mdash; ' +
-      (activeTrack === 'relocation' ? 'Gulf relocation roles' : 'contract/freelance targets') +
-      ' will live here.</div>';
+  if (activeTrack === 'contract') {{
+    grid.innerHTML = '<div class="empty-state">Coming in the next build &mdash; contract/freelance targets will live here.</div>';
     countEl.textContent = '0';
     return;
   }}
 
+  var trackMode = activeTrack === 'relocation' ? 'onsite' : 'remote';
+
   let filtered = JOBS.filter(j => {{
+    if (j.work_mode !== trackMode) return false;
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
     return j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q);

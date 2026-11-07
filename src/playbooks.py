@@ -118,17 +118,16 @@ def select_pitch(job):
     stack_terms = list((profile.get("stack_weights") or {}).keys())
     matched = _matched_skills(job, stack_terms)
     matched_lower = {s.lower() for s in matched}
+    title_lower = job.get("title", "").lower()
 
-    cv_terms = {"computer vision", "pytorch", "yolo", "opencv", "deep learning", "tensorflow"}
-    if matched_lower & cv_terms:
+    builder_skills = {"computer vision", "pytorch", "yolo", "opencv", "deep learning", "tensorflow"}
+    builder_titles = ["machine learning", "ml engineer", "ai engineer", "computer vision", "deep learning"]
+    if matched_lower & builder_skills or any(t in title_lower for t in builder_titles):
         return "builder"
 
-    backend_terms = {"fastapi", "docker", "sql", "backend"}
-    if matched_lower & backend_terms:
-        return "fintech_hybrid"
-
-    text = (job.get("title", "") + " " + job.get("description", "")).lower()
-    if any(kw in text for kw in ("backend", "fintech", "payment", "data engineer")):
+    desc_lower = job.get("description", "").lower()
+    fintech_desc = ["fintech", "payment", "wallet", "microservice", "transaction", "banking"]
+    if "backend" in title_lower or "data engineer" in title_lower or any(kw in desc_lower for kw in fintech_desc):
         return "fintech_hybrid"
 
     return "data_analyst"

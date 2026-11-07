@@ -26,6 +26,13 @@ def _normalize_key(text):
     return re.sub(r"[^\w\s]", "", text.lower()).strip()
 
 
+def _arbeitnow_remote(j):
+    if j.get("remote"):
+        return True
+    text = (j.get("title", "") + " " + j.get("description", "") + " " + " ".join(j.get("tags") or [])).lower()
+    return "remote" in text
+
+
 def _parse_date(raw):
     if not raw:
         return ""
@@ -60,6 +67,7 @@ def fetch_remotive():
             "tags": [j["category"].lower()] if j.get("category") else [],
             "description": j.get("description", ""),
             "remote": True,
+            "work_mode": "remote",
             "via_aggregator": _is_aggregator(company, url),
         })
     return out
@@ -95,6 +103,7 @@ def fetch_remoteok():
             "tags": [t.lower() for t in tags_raw] if isinstance(tags_raw, list) else [],
             "description": j.get("description", ""),
             "remote": True,
+            "work_mode": "remote",
             "via_aggregator": _is_aggregator(company, url),
         })
     return out
@@ -123,9 +132,10 @@ def fetch_arbeitnow():
             "date": _parse_date(j.get("created_at")),
             "tags": [t.lower() for t in tags_raw] if isinstance(tags_raw, list) else [],
             "description": j.get("description", ""),
-            "remote": bool(j.get("remote")),
+            "remote": _arbeitnow_remote(j),
             "via_aggregator": _is_aggregator(company, url),
         })
+        out[-1]["work_mode"] = "remote" if out[-1]["remote"] else "onsite"
     return out
 
 
