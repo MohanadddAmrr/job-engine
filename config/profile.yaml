@@ -1,0 +1,17 @@
+# Keywords describing the candidate's skills and interests
+candidate_keywords: []
+
+# Weights for each technology in the candidate's stack (used during scoring)
+stack_weights: {}
+
+# Job titles or seniority terms that should be excluded
+seniority_block_terms: []
+
+# Locations that should be excluded from results
+location_block_terms: []
+
+# Target job titles to search for
+target_titles: []
+
+# Minimum score a job must reach to appear on the dashboard
+score_threshold:
