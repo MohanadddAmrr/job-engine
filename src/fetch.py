@@ -2,7 +2,7 @@
 
 import json
 import logging
-import os
+import re
 from pathlib import Path
 
 import requests
@@ -13,6 +13,16 @@ log = logging.getLogger(__name__)
 
 TIMEOUT = 20
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+AGGREGATOR_MARKERS = ["jobgether", "huzzle", "linkup.com"]
+
+
+def _is_aggregator(company, url):
+    haystack = (company + " " + url).lower()
+    return any(m in haystack for m in AGGREGATOR_MARKERS)
+
+
+def _normalize_key(text):
+    return re.sub(r"[^\w\s]", "", text.lower()).strip()
 
 
 def _parse_date(raw):
@@ -35,16 +45,19 @@ def fetch_remotive():
 
     out = []
     for j in jobs:
+        company = j.get("company_name", "")
+        url = j.get("url", "")
         out.append({
             "source": "remotive",
             "title": j.get("title", ""),
-            "company": j.get("company_name", ""),
+            "company": company,
             "location": j.get("candidate_required_location", "") or "",
-            "url": j.get("url", ""),
+            "url": url,
             "date": _parse_date(j.get("publication_date")),
             "tags": [j["category"].lower()] if j.get("category") else [],
             "description": j.get("description", ""),
             "remote": True,
+            "via_aggregator": _is_aggregator(company, url),
         })
     return out
 
@@ -67,16 +80,19 @@ def fetch_remoteok():
         if not isinstance(j, dict):
             continue
         tags_raw = j.get("tags") or []
+        company = j.get("company", "")
+        url = j.get("url", "")
         out.append({
             "source": "remoteok",
             "title": j.get("position", ""),
-            "company": j.get("company", ""),
+            "company": company,
             "location": j.get("location", "") or "",
-            "url": j.get("url", ""),
+            "url": url,
             "date": _parse_date(j.get("date")),
             "tags": [t.lower() for t in tags_raw] if isinstance(tags_raw, list) else [],
             "description": j.get("description", ""),
             "remote": True,
+            "via_aggregator": _is_aggregator(company, url),
         })
     return out
 
@@ -93,16 +109,19 @@ def fetch_arbeitnow():
     out = []
     for j in jobs:
         tags_raw = j.get("tags") or []
+        company = j.get("company_name", "")
+        url = j.get("url", "")
         out.append({
             "source": "arbeitnow",
             "title": j.get("title", ""),
-            "company": j.get("company_name", ""),
+            "company": company,
             "location": j.get("location", "") or "",
-            "url": j.get("url", ""),
+            "url": url,
             "date": _parse_date(j.get("created_at")),
             "tags": [t.lower() for t in tags_raw] if isinstance(tags_raw, list) else [],
             "description": j.get("description", ""),
             "remote": bool(j.get("remote")),
+            "via_aggregator": _is_aggregator(company, url),
         })
     return out
 
@@ -114,13 +133,18 @@ def fetch_jobs():
     all_jobs.extend(fetch_arbeitnow())
 
     seen_urls = set()
+    seen_title_company = set()
     deduped = []
     for job in all_jobs:
-        if job["url"] and job["url"] not in seen_urls:
+        if job["url"] and job["url"] in seen_urls:
+            continue
+        tc_key = (_normalize_key(job["title"]), _normalize_key(job["company"]))
+        if tc_key in seen_title_company:
+            continue
+        if job["url"]:
             seen_urls.add(job["url"])
-            deduped.append(job)
-        elif not job["url"]:
-            deduped.append(job)
+        seen_title_company.add(tc_key)
+        deduped.append(job)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "raw_jobs.json"
