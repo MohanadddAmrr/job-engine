@@ -78,7 +78,7 @@ def _keyword_score(text, profile):
 def _remote_bonus(job):
     if job.get("remote"):
         return 5
-    combined = (job["title"] + " " + job["location"]).lower()
+    combined = (job["title"] + " " + job["location"] + " " + job.get("description", "")).lower()
     if "remote" in combined:
         return 5
     return 0
