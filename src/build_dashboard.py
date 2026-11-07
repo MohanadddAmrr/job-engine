@@ -207,6 +207,9 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
   font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1rem;
   color: var(--aqua-bright);
 }}
+.score-badge.tier-high {{ border-color: var(--baby-pink); color: var(--baby-pink); }}
+.score-badge.tier-mid {{ border-color: var(--aqua-jade); color: var(--aqua-jade); }}
+.score-badge.tier-low {{ border-color: var(--text-muted); color: var(--text-muted); }}
 .card-title {{
   font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.05rem;
   line-height: 1.3;
@@ -357,7 +360,7 @@ function renderCards() {{
 
     return '<div class="card">' +
       '<div class="card-top">' +
-        '<div class="score-badge">' + j.score + '</div>' +
+        '<div class="score-badge ' + (j.score >= 80 ? 'tier-high' : j.score >= 60 ? 'tier-mid' : 'tier-low') + '">' + j.score + '</div>' +
         '<div class="card-title">' + escapeHtml(j.title) + '</div>' +
       '</div>' +
       '<div class="card-company">' + escapeHtml(j.company) + aggPill + '</div>' +

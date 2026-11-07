@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -29,8 +30,10 @@ def _parse_date(raw):
     if not raw:
         return ""
     try:
+        if isinstance(raw, (int, float)) or (isinstance(raw, str) and raw.isdigit()):
+            return datetime.fromtimestamp(int(raw), tz=timezone.utc).date().isoformat()
         return dateparser.parse(str(raw)).date().isoformat()
-    except (ValueError, TypeError, OverflowError):
+    except (ValueError, TypeError, OverflowError, OSError):
         return ""
 
 
