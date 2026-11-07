@@ -9,7 +9,10 @@ from pathlib import Path
 import yaml
 from dateutil import parser as dateparser
 
-from src.playbooks import build_playbook
+try:
+    from src.playbooks import build_playbook
+except ImportError:
+    from playbooks import build_playbook
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)

@@ -9,6 +9,11 @@ from pathlib import Path
 
 import yaml
 
+try:
+    from src.contract_targets import CONTRACT_TARGETS
+except ImportError:
+    from contract_targets import CONTRACT_TARGETS
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
@@ -92,6 +97,7 @@ def build_dashboard():
         })
 
     jobs_json = json.dumps(cards_data, ensure_ascii=False)
+    contracts_json = json.dumps(CONTRACT_TARGETS, ensure_ascii=False)
 
     page_html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -309,6 +315,52 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 .copy-btn:hover {{ opacity: 0.85; }}
 .copy-btn.copied {{ background: var(--aqua-bright); }}
 
+/* ── Contract cards ── */
+.tier-badge {{
+  font-size: 0.72rem; padding: 3px 10px; border-radius: 6px; font-weight: 600;
+}}
+.tier-badge.t1 {{ background: rgba(244,184,196,0.15); color: var(--baby-pink); }}
+.tier-badge.t2 {{ background: rgba(46,139,130,0.18); color: var(--aqua-bright); }}
+.tier-badge.t3 {{ background: rgba(139,166,163,0.15); color: var(--text-muted); }}
+.contract-info {{
+  font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;
+}}
+.contract-desc {{
+  font-size: 0.88rem; color: var(--text-primary); line-height: 1.5; margin: 4px 0;
+}}
+.contract-steps {{
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}}
+.contract-steps li {{
+  font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;
+  padding-left: 22px; position: relative;
+}}
+.contract-steps li::before {{
+  content: attr(data-n); position: absolute; left: 0;
+  color: var(--aqua-jade); font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+}}
+.pitch-box {{
+  background: rgba(46,139,130,0.1); border: 1px solid rgba(46,139,130,0.2);
+  border-radius: 10px; padding: 12px; font-size: 0.84rem;
+  color: var(--aqua-bright); line-height: 1.5;
+}}
+.priority-note {{
+  font-size: 0.82rem; color: var(--text-primary); line-height: 1.5;
+  padding: 10px 14px; border-radius: 8px;
+  background: rgba(244,184,196,0.06);
+  border-left: 3px solid var(--baby-pink);
+}}
+.priority-note.t2 {{ border-left-color: var(--aqua-jade); }}
+.priority-note.t3 {{ border-left-color: var(--text-muted); }}
+.go-btn {{
+  display: inline-block; padding: 8px 20px; border-radius: 10px;
+  background: var(--baby-pink); color: var(--midnight-abyss);
+  font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.88rem;
+  text-decoration: none; transition: opacity 0.2s;
+}}
+.go-btn:hover {{ opacity: 0.85; }}
+
 /* ── Empty state ── */
 .empty-state {{
   grid-column: 1 / -1; text-align: center; padding: 60px 24px;
@@ -354,6 +406,7 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 
 <script>
 const JOBS = {jobs_json};
+const CONTRACTS = {contracts_json};
 let activeTrack = 'remote';
 let searchTerm = '';
 let sortMode = 'score';
@@ -369,7 +422,7 @@ function updateTabCounts() {{
   var reloc = JOBS.filter(j => j.work_mode === 'onsite').length;
   document.getElementById('count-remote').textContent = remote;
   document.getElementById('count-relocation').textContent = reloc;
-  document.getElementById('count-contract').textContent = '0';
+  document.getElementById('count-contract').textContent = CONTRACTS.length;
 }}
 
 function renderCards() {{
@@ -378,8 +431,7 @@ function renderCards() {{
   updateTabCounts();
 
   if (activeTrack === 'contract') {{
-    grid.innerHTML = '<div class="empty-state">Coming in the next build &mdash; contract/freelance targets will live here.</div>';
-    countEl.textContent = '0';
+    renderContracts(grid, countEl);
     return;
   }}
 
@@ -446,6 +498,35 @@ function renderCards() {{
           '</div>';
         }})() +
       '</div>' +
+    '</div>';
+  }}).join('');
+}}
+
+function renderContracts(grid, countEl) {{
+  var sorted = CONTRACTS.slice().sort(function(a,b) {{
+    var order = {{'Tier 1': 0, 'Tier 2': 1, 'Tier 3 (later)': 2}};
+    return (order[a.tier]||9) - (order[b.tier]||9);
+  }});
+  countEl.textContent = sorted.length;
+  grid.innerHTML = sorted.map(function(c) {{
+    var tc = c.tier === 'Tier 1' ? 't1' : c.tier === 'Tier 2' ? 't2' : 't3';
+    var usd = c.pays_usd ? 'USD ✓' : 'Non-USD';
+    var steps = (c.setup_steps || []).map(function(s, i) {{
+      return '<li data-n="' + (i+1) + '.">' + escapeHtml(s) + '</li>';
+    }}).join('');
+    return '<div class="card">' +
+      '<div class="card-top" style="gap:12px">' +
+        '<div class="card-title">' + escapeHtml(c.name) + '</div>' +
+        '<span class="tier-badge ' + tc + '">' + escapeHtml(c.tier) + '</span>' +
+      '</div>' +
+      '<div class="contract-info">' + usd + ' · Egypt: ' + escapeHtml(c.egypt_eligible) +
+        ' · First $: ' + escapeHtml(c.time_to_first_dollar) +
+        ' · Effort: ' + escapeHtml(c.effort) + '</div>' +
+      '<div class="contract-desc">' + escapeHtml(c.what_it_is) + '</div>' +
+      '<ol class="contract-steps">' + steps + '</ol>' +
+      '<div class="pitch-box">' + escapeHtml(c.pitch_angle) + '</div>' +
+      '<div class="priority-note ' + tc + '">' + escapeHtml(c.priority_note) + '</div>' +
+      '<div><a class="go-btn" href="' + escapeHtml(c.url) + '" target="_blank" rel="noopener">Go to ' + escapeHtml(c.name) + ' →</a></div>' +
     '</div>';
   }}).join('');
 }}
