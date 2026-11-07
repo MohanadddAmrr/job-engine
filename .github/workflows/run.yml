@@ -1,0 +1,36 @@
+name: job-engine refresh
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 16 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        run: python src/main.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "job-engine-bot"
+          git config user.email "job-engine-bot@users.noreply.github.com"
+          git add data/ docs/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: scheduled refresh [skip ci]"
+            git push
+          fi
