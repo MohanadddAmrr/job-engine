@@ -87,6 +87,7 @@ def build_dashboard():
             "breakdown": breakdown,
             "desc_preview": desc_preview,
             "remote": j.get("remote", False),
+            "playbook": j.get("playbook", {}),
         })
 
     jobs_json = json.dumps(cards_data, ensure_ascii=False)
@@ -259,11 +260,47 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 .desc-link {{ color: var(--aqua-bright); text-decoration: none; font-size: 0.82rem; }}
 .desc-link:hover {{ text-decoration: underline; }}
 .playbook-box {{
-  background: rgba(46,139,130,0.08); border: 1px dashed var(--card-border);
-  border-radius: 12px; padding: 14px;
+  background: rgba(46,139,130,0.08); border: 1px solid var(--card-border);
+  border-radius: 12px; padding: 16px;
 }}
-.playbook-box h4 {{ font-size: 0.88rem; margin-bottom: 6px; }}
-.playbook-box p {{ font-size: 0.8rem; color: var(--text-muted); }}
+.playbook-header {{ display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }}
+.playbook-header h4 {{ font-size: 0.9rem; margin: 0; }}
+.channel-badge {{
+  font-size: 0.72rem; padding: 3px 10px; border-radius: 6px;
+  background: rgba(46,139,130,0.18); color: var(--aqua-bright);
+}}
+.pitch-badge {{
+  font-size: 0.72rem; padding: 3px 10px; border-radius: 6px;
+  background: rgba(244,184,196,0.1); color: var(--baby-pink);
+}}
+.playbook-steps {{
+  list-style: none; padding: 0; margin: 0 0 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}}
+.playbook-steps li {{
+  font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;
+  padding-left: 20px; position: relative;
+}}
+.playbook-steps li::before {{
+  content: attr(data-n); position: absolute; left: 0;
+  color: var(--aqua-jade); font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+}}
+.msg-box {{
+  background: var(--midnight-abyss); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 14px; margin-bottom: 10px;
+  font-family: 'Space Grotesk', monospace; font-size: 0.8rem;
+  color: var(--text-primary); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 200px; overflow-y: auto;
+}}
+.copy-btn {{
+  display: inline-block; padding: 7px 18px; border-radius: 8px;
+  background: var(--baby-pink); color: var(--midnight-abyss);
+  font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.82rem;
+  border: none; cursor: pointer; transition: opacity 0.2s;
+}}
+.copy-btn:hover {{ opacity: 0.85; }}
+.copy-btn.copied {{ background: var(--aqua-bright); }}
 
 /* ── Empty state ── */
 .empty-state {{
@@ -374,10 +411,37 @@ function renderCards() {{
         '<div class="breakdown">' + chips + '</div>' +
         '<div class="desc-preview">' + escapeHtml(j.desc_preview) + '</div>' +
         '<a class="desc-link" href="' + escapeHtml(j.url) + '" target="_blank" rel="noopener">view full posting &rarr;</a>' +
-        '<div class="playbook-box"><h4>How to apply</h4><p>Application playbook loads here (next build).</p></div>' +
+        (function() {{
+          var pb = j.playbook || {{}};
+          var ch = pb.channel || 'unknown';
+          var pt = (pb.pitch_type || 'general').replace('_', ' ');
+          var steps = (pb.steps || []).map(function(s, i) {{
+            return '<li data-n="' + (i+1) + '.">' + escapeHtml(s) + '</li>';
+          }}).join('');
+          var msg = pb.message || '';
+          return '<div class="playbook-box">' +
+            '<div class="playbook-header"><h4>How to apply</h4>' +
+            '<span class="channel-badge">' + escapeHtml(ch) + '</span>' +
+            '<span class="pitch-badge">' + escapeHtml(pt) + '</span></div>' +
+            '<ol class="playbook-steps">' + steps + '</ol>' +
+            (msg ? '<div class="msg-box" id="msg-' + i + '">' + escapeHtml(msg) + '</div>' +
+            '<button class="copy-btn" onclick="copyMsg(' + i + ')">Copy message</button>' : '') +
+          '</div>';
+        }})() +
       '</div>' +
     '</div>';
   }}).join('');
+}}
+
+function copyMsg(idx) {{
+  var el = document.getElementById('msg-' + idx);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(function() {{
+    var btn = el.nextElementSibling;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {{ btn.textContent = 'Copy message'; btn.classList.remove('copied'); }}, 2000);
+  }});
 }}
 
 function toggleExpand(btn) {{

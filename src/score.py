@@ -9,6 +9,8 @@ from pathlib import Path
 import yaml
 from dateutil import parser as dateparser
 
+from src.playbooks import build_playbook
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
@@ -136,6 +138,7 @@ def score_jobs():
             "remote": rb,
             "recency": rc,
         }
+        job["playbook"] = build_playbook(job)
         scored.append(job)
 
     scored.sort(key=lambda j: j["score"], reverse=True)
