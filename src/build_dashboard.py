@@ -460,7 +460,7 @@ function renderCards() {{
     const aggPill = j.via_aggregator ? '<span class="agg-pill">via aggregator</span>' : '';
     const bd = j.breakdown || {{}};
     const chips = [
-      ['Title', bd.title], ['Skills', bd.skills], ['Keywords', bd.keywords],
+      ['Title', bd.title], ['Entry', bd.entry], ['Skills', bd.skills], ['Keywords', bd.keywords],
       ['Remote', bd.remote], ['Recency', bd.recency]
     ].filter(c => c[1] !== undefined).map(c => '<span class="breakdown-chip">' + c[0] + ' ' + c[1] + '</span>').join('');
 

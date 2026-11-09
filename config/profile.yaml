@@ -16,6 +16,15 @@ target_titles:
     - software engineer
     - full stack developer
     - full-stack developer
+  entry:       # internship/entry-level signals (bonus only when combined with a field match)
+    - intern
+    - internship
+    - graduate
+    - junior
+    - entry level
+    - entry-level
+    - trainee
+    - associate
 
 # Weights for each technology in the candidate's stack (used during scoring)
 stack_weights:
@@ -78,4 +87,4 @@ candidate_keywords:
   - flutter
 
 # Minimum score a job must reach to appear on the dashboard
-score_threshold: 15
+score_threshold: 10

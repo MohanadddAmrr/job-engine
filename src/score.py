@@ -62,6 +62,15 @@ def _title_score(title_lower, profile):
     return 0
 
 
+def _entry_bonus(title_lower, title_score, profile):
+    if title_score == 0:
+        return 0
+    for term in profile.get("target_titles", {}).get("entry", []):
+        if term.lower() in title_lower:
+            return 8
+    return 0
+
+
 def _skill_score(text, profile):
     total = 0
     for term, weight in profile["stack_weights"].items():
@@ -122,12 +131,13 @@ def score_jobs():
         full_text = (title_lower + " " + job["description"].lower() + " " + tags_text).lower()
 
         ts = _title_score(title_lower, profile)
+        eb = _entry_bonus(title_lower, ts, profile)
         ss = _skill_score(full_text, profile)
         ks = _keyword_score(full_text, profile)
         rb = _remote_bonus(job)
         rc = _recency_bonus(job)
 
-        raw_score = ts + ss + ks + rb + rc
+        raw_score = ts + eb + ss + ks + rb + rc
 
         if raw_score < threshold:
             below_count += 1
@@ -136,6 +146,7 @@ def score_jobs():
         job["score"] = min(raw_score, 100)
         job["score_breakdown"] = {
             "title": ts,
+            "entry": eb,
             "skills": ss,
             "keywords": ks,
             "remote": rb,
