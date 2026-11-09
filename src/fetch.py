@@ -9,6 +9,11 @@ from pathlib import Path
 import requests
 from dateutil import parser as dateparser
 
+try:
+    from src.companies import COMPANY_BOARDS
+except ImportError:
+    from companies import COMPANY_BOARDS
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
@@ -250,6 +255,139 @@ def fetch_workingnomads():
     return out
 
 
+def _detect_remote(location_text):
+    return "remote" in (location_text or "").lower()
+
+
+def _gh_jobs(company, slug):
+    url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
+    try:
+        resp = requests.get(url, timeout=TIMEOUT)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        jobs = resp.json().get("jobs", [])
+    except Exception:
+        return None
+    if not jobs:
+        return None
+
+    out = []
+    for j in jobs:
+        loc = ""
+        if j.get("location"):
+            loc = j["location"].get("name", "") if isinstance(j["location"], dict) else str(j["location"])
+        remote = _detect_remote(loc)
+        dept = j.get("departments", [])
+        tags = [d["name"].lower() for d in dept if isinstance(d, dict) and d.get("name")] if isinstance(dept, list) else []
+        out.append({
+            "source": f"company:{company}",
+            "title": j.get("title", ""),
+            "company": company,
+            "location": loc,
+            "url": j.get("absolute_url", ""),
+            "date": _parse_date(j.get("updated_at")),
+            "tags": tags,
+            "description": j.get("content", ""),
+            "remote": remote,
+            "work_mode": "remote" if remote else "onsite",
+            "via_aggregator": False,
+        })
+    return out
+
+
+def _lever_jobs(company, slug):
+    url = f"https://api.lever.co/v0/postings/{slug}?mode=json"
+    try:
+        resp = requests.get(url, timeout=TIMEOUT)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        jobs = resp.json()
+    except Exception:
+        return None
+    if not isinstance(jobs, list) or not jobs:
+        return None
+
+    out = []
+    for j in jobs:
+        cats = j.get("categories", {})
+        loc = cats.get("location", "") if isinstance(cats, dict) else ""
+        remote = _detect_remote(loc)
+        team = cats.get("team", "") if isinstance(cats, dict) else ""
+        tags = [team.lower()] if team else []
+        out.append({
+            "source": f"company:{company}",
+            "title": j.get("text", ""),
+            "company": company,
+            "location": loc or "",
+            "url": j.get("hostedUrl", ""),
+            "date": _parse_date(j.get("createdAt")),
+            "tags": tags,
+            "description": j.get("descriptionPlain", ""),
+            "remote": remote,
+            "work_mode": "remote" if remote else "onsite",
+            "via_aggregator": False,
+        })
+    return out
+
+
+def _ashby_jobs(company, slug):
+    url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
+    try:
+        resp = requests.get(url, timeout=TIMEOUT)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        jobs = resp.json().get("jobs", [])
+    except Exception:
+        return None
+    if not jobs:
+        return None
+
+    out = []
+    for j in jobs:
+        loc = j.get("location", "")
+        if isinstance(loc, dict):
+            loc = loc.get("name", "")
+        elif isinstance(loc, list):
+            loc = ", ".join(str(l) for l in loc)
+        remote = _detect_remote(str(loc))
+        dept = j.get("department", "")
+        tags = [dept.lower()] if dept else []
+        out.append({
+            "source": f"company:{company}",
+            "title": j.get("title", ""),
+            "company": company,
+            "location": str(loc) or "",
+            "url": j.get("jobUrl", "") or j.get("applyUrl", ""),
+            "date": _parse_date(j.get("publishedAt")),
+            "tags": tags,
+            "description": j.get("descriptionPlain", "") or "",
+            "remote": remote,
+            "work_mode": "remote" if remote else "onsite",
+            "via_aggregator": False,
+        })
+    return out
+
+
+def fetch_companies():
+    fetchers = {"greenhouse": _gh_jobs, "lever": _lever_jobs, "ashby": _ashby_jobs}
+    all_jobs = []
+    for board in COMPANY_BOARDS:
+        fn = fetchers.get(board["ats"])
+        if not fn:
+            continue
+        result = fn(board["name"], board["slug"])
+        if result is None:
+            log.info("SKIP %s (%s): not found/empty", board["name"], board["ats"])
+        else:
+            log.info("OK   %s (%s): %d jobs", board["name"], board["ats"], len(result))
+            all_jobs.extend(result)
+    log.info("Company boards total: %d jobs", len(all_jobs))
+    return all_jobs
+
+
 def fetch_jobs():
     all_jobs = []
     all_jobs.extend(fetch_remotive())
@@ -258,6 +396,7 @@ def fetch_jobs():
     all_jobs.extend(fetch_jobicy())
     all_jobs.extend(fetch_himalayas())
     all_jobs.extend(fetch_workingnomads())
+    all_jobs.extend(fetch_companies())
 
     seen_urls = set()
     seen_title_company = set()
