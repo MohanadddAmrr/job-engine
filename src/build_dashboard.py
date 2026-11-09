@@ -14,6 +14,11 @@ try:
 except ImportError:
     from contract_targets import CONTRACT_TARGETS
 
+try:
+    from src.board_targets import BOARD_TARGETS
+except ImportError:
+    from board_targets import BOARD_TARGETS
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
@@ -98,6 +103,7 @@ def build_dashboard():
 
     jobs_json = json.dumps(cards_data, ensure_ascii=False)
     contracts_json = json.dumps(CONTRACT_TARGETS, ensure_ascii=False)
+    boards_json = json.dumps(BOARD_TARGETS, ensure_ascii=False)
 
     page_html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -361,6 +367,29 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 }}
 .go-btn:hover {{ opacity: 0.85; }}
 
+/* ── Board cards ── */
+.region-badge {{
+  font-size: 0.72rem; padding: 3px 10px; border-radius: 6px; font-weight: 600;
+}}
+.region-badge.egypt {{ background: rgba(244,184,196,0.15); color: var(--baby-pink); }}
+.region-badge.gulf {{ background: rgba(46,139,130,0.18); color: var(--aqua-bright); }}
+.region-badge.global {{ background: rgba(139,166,163,0.15); color: var(--text-muted); }}
+.board-desc {{
+  font-size: 0.88rem; color: var(--text-primary); line-height: 1.5;
+}}
+.search-tip-box {{
+  background: rgba(46,139,130,0.1); border: 1px solid rgba(46,139,130,0.2);
+  border-radius: 10px; padding: 12px; font-size: 0.84rem;
+  color: var(--aqua-bright); line-height: 1.5;
+}}
+.open-btn {{
+  display: inline-block; padding: 8px 20px; border-radius: 10px;
+  background: var(--baby-pink); color: var(--midnight-abyss);
+  font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.88rem;
+  text-decoration: none; transition: opacity 0.2s;
+}}
+.open-btn:hover {{ opacity: 0.85; }}
+
 /* ── Empty state ── */
 .empty-state {{
   grid-column: 1 / -1; text-align: center; padding: 60px 24px;
@@ -391,6 +420,7 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
   <div class="tab active" data-track="remote">Remote<span class="tab-count" id="count-remote"></span></div>
   <div class="tab" data-track="relocation">Relocation<span class="tab-count" id="count-relocation"></span></div>
   <div class="tab" data-track="contract">Contract<span class="tab-count" id="count-contract"></span></div>
+  <div class="tab" data-track="boards">Job Boards<span class="tab-count" id="count-boards"></span></div>
 </div>
 
 <div class="filters">
@@ -407,6 +437,7 @@ h1, h2, h3, h4 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; }}
 <script>
 const JOBS = {jobs_json};
 const CONTRACTS = {contracts_json};
+const BOARDS = {boards_json};
 let activeTrack = 'remote';
 let searchTerm = '';
 let sortMode = 'score';
@@ -423,6 +454,7 @@ function updateTabCounts() {{
   document.getElementById('count-remote').textContent = remote;
   document.getElementById('count-relocation').textContent = reloc;
   document.getElementById('count-contract').textContent = CONTRACTS.length;
+  document.getElementById('count-boards').textContent = BOARDS.length;
 }}
 
 function renderCards() {{
@@ -432,6 +464,10 @@ function renderCards() {{
 
   if (activeTrack === 'contract') {{
     renderContracts(grid, countEl);
+    return;
+  }}
+  if (activeTrack === 'boards') {{
+    renderBoards(grid, countEl);
     return;
   }}
 
@@ -527,6 +563,27 @@ function renderContracts(grid, countEl) {{
       '<div class="pitch-box">' + escapeHtml(c.pitch_angle) + '</div>' +
       '<div class="priority-note ' + tc + '">' + escapeHtml(c.priority_note) + '</div>' +
       '<div><a class="go-btn" href="' + escapeHtml(c.url) + '" target="_blank" rel="noopener">Go to ' + escapeHtml(c.name) + ' →</a></div>' +
+    '</div>';
+  }}).join('');
+}}
+
+function renderBoards(grid, countEl) {{
+  var prioOrder = {{'high': 0, 'medium': 1, 'low': 2}};
+  var sorted = BOARDS.slice().sort(function(a,b) {{
+    return (prioOrder[a.priority]||9) - (prioOrder[b.priority]||9);
+  }});
+  countEl.textContent = sorted.length;
+  grid.innerHTML = sorted.map(function(b) {{
+    var r = b.region.toLowerCase();
+    var rc = r.includes('egypt') ? 'egypt' : (r.includes('gulf') || r.includes('mena')) ? 'gulf' : 'global';
+    return '<div class="card">' +
+      '<div class="card-top" style="gap:12px">' +
+        '<div class="card-title">' + escapeHtml(b.name) + '</div>' +
+        '<span class="region-badge ' + rc + '">' + escapeHtml(b.region) + '</span>' +
+      '</div>' +
+      '<div class="board-desc">' + escapeHtml(b.what_it_is) + '</div>' +
+      '<div class="search-tip-box">' + escapeHtml(b.search_tip) + '</div>' +
+      '<div><a class="open-btn" href="' + escapeHtml(b.url) + '" target="_blank" rel="noopener">Open ' + escapeHtml(b.name) + ' search &rarr;</a></div>' +
     '</div>';
   }}).join('');
 }}
