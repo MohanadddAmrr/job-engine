@@ -371,6 +371,96 @@ def _ashby_jobs(company, slug):
     return out
 
 
+VC_BOARDS = [
+    {
+        "name": "Global Ventures",
+        "network_id": "12434",
+        "url": "https://api.getro.com/v2/networks/12434/jobs?page=1&per_page=100",
+        "platform": "getro",
+    },
+    {
+        "name": "Y Combinator",
+        "url": "https://www.workatastartup.com/companies.json",
+        "platform": "yc",
+    },
+]
+
+
+def _parse_getro_jobs(data, board_name):
+    jobs_raw = data if isinstance(data, list) else data.get("items", data.get("jobs", []))
+    if not isinstance(jobs_raw, list):
+        return []
+    out = []
+    for j in jobs_raw:
+        if not isinstance(j, dict):
+            continue
+        company = ""
+        org = j.get("organization") or j.get("company") or {}
+        if isinstance(org, dict):
+            company = org.get("name", "")
+        elif isinstance(org, str):
+            company = org
+        loc = j.get("location", "") or ""
+        if isinstance(loc, dict):
+            loc = loc.get("name", "")
+        elif isinstance(loc, list):
+            loc = ", ".join(str(l) for l in loc)
+        remote = _detect_remote(str(loc))
+        title = j.get("title", "") or j.get("job_title", "")
+        url = j.get("url", "") or j.get("application_url", "") or j.get("job_url", "")
+        desc = j.get("description", "") or j.get("snippet", "") or ""
+        dept = j.get("department", "") or ""
+        tags = [dept.lower()] if dept else []
+        date_raw = j.get("published_at") or j.get("created_at") or j.get("posted_at") or ""
+        out.append({
+            "source": f"vc:{board_name}",
+            "title": title,
+            "company": company or board_name,
+            "location": str(loc),
+            "url": url,
+            "date": _parse_date(date_raw),
+            "tags": tags,
+            "description": desc,
+            "remote": remote,
+            "work_mode": "remote" if remote else "onsite",
+            "via_aggregator": False,
+        })
+    return out
+
+
+def fetch_vc_boards():
+    all_jobs = []
+    for board in VC_BOARDS:
+        name = board["name"]
+        try:
+            resp = requests.get(
+                board["url"], timeout=TIMEOUT,
+                headers={"User-Agent": "job-engine/1.0"},
+            )
+            if resp.status_code in (401, 403):
+                log.info("SKIP %s: auth required (%d)", name, resp.status_code)
+                continue
+            if resp.status_code == 404:
+                log.info("SKIP %s: not found (404)", name)
+                continue
+            resp.raise_for_status()
+            ct = resp.headers.get("content-type", "")
+            if "json" not in ct:
+                log.info("SKIP %s: no JSON feed found (content-type: %s)", name, ct)
+                continue
+            data = resp.json()
+            jobs = _parse_getro_jobs(data, name)
+            if not jobs:
+                log.info("SKIP %s: JSON returned but 0 parseable jobs", name)
+                continue
+            log.info("OK   %s: %d jobs", name, len(jobs))
+            all_jobs.extend(jobs)
+        except Exception as exc:
+            log.info("SKIP %s: %s", name, exc)
+    log.info("VC boards total: %d jobs", len(all_jobs))
+    return all_jobs
+
+
 def fetch_companies():
     fetchers = {"greenhouse": _gh_jobs, "lever": _lever_jobs, "ashby": _ashby_jobs}
     all_jobs = []
@@ -397,6 +487,7 @@ def fetch_jobs():
     all_jobs.extend(fetch_himalayas())
     all_jobs.extend(fetch_workingnomads())
     all_jobs.extend(fetch_companies())
+    all_jobs.extend(fetch_vc_boards())
 
     seen_urls = set()
     seen_title_company = set()
